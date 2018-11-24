@@ -4,13 +4,33 @@ import java.util.LinkedList;
 import java.util.List;
 
 public class DPHullCreator {
-	
+	private List<int[]> hullList = null; // dynamic list for maintaining record of hull points with each hull call
 
 	/**
-	 * This method is an implementation of quickhull.
+	 * This method is an implementation of quick hull. It is used to compute a
+	 * polygon that surrounds a space of points on a 2-d graph, through the outer
+	 * most points of that graph. The implementation is taken from directions given
+	 * in the textbook Computer Algorithms, 2nd Edition by Horowitz, Sahni and
+	 * Rajasekeran. This method takes a 2-d array representing an array of graph
+	 * point coordinates. It then finds the extreme points in the list by largest
+	 * and smallest x-coordinate values and forms a line segment from them. Then,
+	 * each other point in the graph is compared to see if it is oriented to the
+	 * right or left of the segment. These points are placed into lists that will be
+	 * used to create arrays with points to the left and right of the line segment,
+	 * with the line segment points included in each array. Then, the local hull()
+	 * method implementation is called to recursively breakdown the list into sub
+	 * problems and find points that will belong to the hull of the graph. If there
+	 * is a tie between extreme points, all points of tied lowest x-value and
+	 * highest x-value are compared to see which two in each set have the highest
+	 * and lowest y-values, which are used as extremes for those lists. Then, the
+	 * subproblem arrays are defined by the left and right extremes with largest
+	 * y-values forming a line segment and the left and right extremes with smallest
+	 * y-values forming the other. After all calls of the recursive hull method end,
+	 * the resulting points of the hull from each subproblem are added to the hull
+	 * array that is returned by this method.
 	 * 
-	 * @param a array of
-	 * @return
+	 * @param a array of point coordinates of a of a 2-d graph
+	 * @return hull of the a
 	 */
 	public int[][] quickHull(int[][] a) {
 
@@ -22,6 +42,8 @@ public class DPHullCreator {
 		}
 
 		int[][] hull = null;
+
+		this.hullList = new LinkedList<int[]>(); // initialize dynamic list to hold hull points from subproblems
 
 		int n = a.length; // get number of points in point array
 		int leftMost = 0, rightMost = 0; // declare indices for left most and right most points
@@ -38,12 +60,9 @@ public class DPHullCreator {
 		// list of points right of line segment for recursive subproblem breakdown
 		List<int[]> x2List = new LinkedList<int[]>();
 
-		int[][] x1 = null;
+		int[][] x1 = null; // declare reference to first sub array of sub problem divide step
 
-		int[][] x2 = null;
-
-		int[][] upperHull = null;
-		int[][] lowerHull = null;
+		int[][] x2 = null; // declare reference to second sub array of sub problem divide step
 
 		// loop to find left and right most extreme points in points array
 		for (int i = 0; i < n; i++) {
@@ -117,30 +136,40 @@ public class DPHullCreator {
 
 			}
 
+			// create arrays for sub arrays X1 and X2 to breakdown recursively to solve sub
+			// problems
 			x1 = new int[x1List.size() + 2][leftMostPoints.get(0).length];
 
 			x2 = new int[x2List.size() + 2][rightMostPoints.get(0).length];
 
 			x1[0] = a[leftMost];
 			x1[x1.length - 1] = a[rightMost];
+			
+			for(int i = 1; i < x1List.size()-1; i++) {
+				x1[i] = x1List.get(i);
+			}
 
 			x2[0] = a[rightMost];
 			x2[x2.length - 1] = a[leftMost];
+			
+			for(int i = 1; i < x2List.size()-1; i++) {
+				x2[i] = x2List.get(i);
+			}
 
-			upperHull = dPHull(0, x1.length - 1, x1);
-			lowerHull = dPHull(0, x2.length - 1, x2);
+			dPHull(0, x1.length - 1, x1);
+			dPHull(0, x2.length - 1, x2);
 
 			// handle ties here
 		} else {
 
-			int[] p1 = leftMostPoints.get(0);
-			int[] p11 = leftMostPoints.get(0);
-			int[] p2 = rightMostPoints.get(0);
-			int[] p22 = rightMostPoints.get(0);
-			int r1 = 0;
-			int r2 = 0;
-			int l1 = 0;
-			int l2 = 0;
+			int[] p1 = leftMostPoints.get(0); // left point of smallest y-coord value
+			int[] p11 = leftMostPoints.get(0); // left point of largest y-value
+			int[] p2 = rightMostPoints.get(0); // right point of smallest y-value
+			int[] p22 = rightMostPoints.get(0); // right point of largest y-value
+			int r1 = 0; // index of p2
+			int r2 = 0; // index of p22
+			int l1 = 0; // index of p1
+			int l2 = 0; // index of p11
 
 			// loop through each tied extreme left most point in a
 			for (int i = 0; i < leftMostPoints.size(); i++) {
@@ -182,51 +211,85 @@ public class DPHullCreator {
 					r2 = i;
 				}
 			}
+			
+			for (int i = 0; i < a.length; i++) {
 
-			x1 = new int[x1List.size() + 2][leftMostPoints.get(0).length];
+				// create 3x3 arrays to determine location of point at i relative to line seg of
+				// left and rightmost
+				int[][] detArr = new int[3][3];
+				detArr[0][0] = p11[0];
+				detArr[0][1] = p11[1];
+				detArr[0][2] = 1;
+				detArr[1][0] = p22[0];
+				detArr[1][1] = p22[1];
+				detArr[1][2] = 1;
+				detArr[2][0] = a[i][0];
+				detArr[2][1] = a[i][1];
+				detArr[2][2] = 1;
 
-			x2 = new int[x2List.size() + 2][rightMostPoints.get(0).length];
+				// check if point at points[i] is to the left of line seg of p11 and
+				// p22
+				if (determinant(a, 3) > 0) {
+					x1List.add(a[i]);
+				}
+				
+				// create 3x3 arrays to determine location of point at i relative to line seg of
+				//  and rightmost
+				detArr = new int[3][3];
+				detArr[0][0] = p1[0];
+				detArr[0][1] = p1[1];
+				detArr[0][2] = 1;
+				detArr[1][0] = p2[0];
+				detArr[1][1] = p2[1];
+				detArr[1][2] = 1;
+				detArr[2][0] = a[i][0];
+				detArr[2][1] = a[i][1];
+				detArr[2][2] = 1;
 
-			x1[0] = p1;
-			x1[x1.length - 1] = p11;
-
-			x2[0] = p2;
-			x2[x2.length - 1] = p22;
-
-			// perform divide step of DCG to get hulls of sub arrays
-			upperHull = dPHull(l2, r2, a);
-			lowerHull = dPHull(l1, r1, a);
-
-		}
-
-		// set hull size for glue step of DCG for convex hull problem
-		if (upperHull == null) {
-
-			hull = lowerHull;
-
-		} else if (lowerHull == null) {
-
-			hull = upperHull;
-
-		} else {
-
-			hull = new int[upperHull.length + lowerHull.length][upperHull[0].length];
-
-			// declare and initialize hull index for merging returned upper and lower hulls
-			// to hull
-			int hullIndex = 0;
-
-			// merge upper hull
-			for (int i = 0; i < upperHull.length; i++) {
-
-				hull[hullIndex++] = upperHull[i];
+				// check if point at points[i] is to the right of line seg of p1 and
+				// p2
+				if (determinant(a, 3) < 0) {
+					x2List.add(a[i]);
+				}
 
 			}
 
-			// merge lower hull
-			for (int i = 0; i < lowerHull.length; i++) {
+			// create arrays for sub arrays X1 and X2 to breakdown recursively to solve sub
+			// problems
+			x1 = new int[x1List.size() + 2][p11.length];
 
-				hull[hullIndex++] = lowerHull[i];
+			x2 = new int[x2List.size() + 2][p1.length];
+
+			x1[0] = p11;
+			x1[x1.length - 1] = p22;
+			
+			for(int i = 1; i < x1List.size()-1; i++) {
+				x1[i] = x1List.get(i);
+			}
+
+			x2[0] = p1;
+			x2[x2.length - 1] = p2;
+			
+			for(int i = 1; i < x2List.size()-1; i++) {
+				x2[i] = x2List.get(i);
+			}
+
+			// perform divide step of DCG to get hulls of sub arrays
+			dPHull(l2, r2, x1);
+			dPHull(l1, r1, x2);
+
+		}
+
+		// if dynamic list containing hull points is not empty, add hull points to the
+		// hull to be returned
+		if (this.hullList.size() > 0) {
+
+			hull = new int[this.hullList.size()][this.hullList.get(0).length];
+
+			// set hull points from dynamic list kept during hull calls
+			for (int i = 0; i < this.hullList.size(); i++) {
+
+				hull[i] = this.hullList.get(i);
 			}
 
 		}
@@ -244,126 +307,44 @@ public class DPHullCreator {
 	 * is implemented with a dual-pivot strategy for optimized partitioning of the
 	 * current array into sub arrays.
 	 * 
-	 * @param p
-	 * @param q
-	 * @param a
+	 * @param p lowest index of the sub array
+	 * @param q highest index of the sub array
+	 * @param a array to be broken down and partitioned by a recursive hull call
 	 */
-	private int[][] dPHull(int p, int q, int[][] a) {
+	private void dPHull(int p, int q, int[][] a) {
 
 		// if the span of the sub array is greater than two points, compute hull
 		if ((q - p) > 2) {
 
-			// partition array and sort points by x-coordinate
-			partition(a, p, q);
+			// partition sub array and sort points by x-coordinate, scope between p and q
+			// since the extreme points must maintain their positions
+			int hullPointIndex = partition(a, p + 1, q - 1);
 
-			// declare variable to store a point to
-			int[] hullPoint = a[p];
-			int hullPointIndex = p;
-
-			int maxArea = 0;
-
-			int[][] detArr = null;
-
-			// find the point in the sub array, where the there is a maximum triangular area
-			// with p and q
-			for (int i = p + 1; i < q; i++) {
-
-				// create 3x3 arrays to determine location of point at i relative to line seg of
-				// left and rightmost
-				detArr = new int[3][3];
-				detArr[0][0] = a[p][0];
-				detArr[0][1] = a[p][1];
-				detArr[0][2] = 1;
-				detArr[1][0] = a[q][0];
-				detArr[1][1] = a[q][1];
-				detArr[1][2] = 1;
-				detArr[2][0] = a[i][0];
-				detArr[2][1] = a[i][1];
-				detArr[2][2] = 1;
-
-				// check if current maximum triangle area is less than that of the triangle
-				// formed by p,q,i
-				if (maxArea < (determinant(detArr, 3) / 2)) {
-
-					// set point
-					hullPoint = a[i];
-					hullPointIndex = i;
-				}
-
-			}
+			// add partition point to the dynamic hull point list
+			this.hullList.add(a[hullPointIndex]);
 
 			// recursively breakdown problem to upper and lower hulls of left and right sub
 			// arrays
-			int[][] upperHull = dPHull(p, hullPointIndex, a);
-			int[][] lowerHull = dPHull(hullPointIndex, q, a);
-
-			int[][] hull = null; // declare variable to hold the hull
-
-			// if both upper and lower hulls are null, set hull of this sub problem to the
-			// partition point
-			if (upperHull == null && lowerHull == null) {
-
-				hull = new int[1][hullPoint.length];
-				hull[0] = hullPoint;
-
-			} else // set hull size for glue step of DCG for convex hull problem by partition point
-					// and lower hull
-			if (upperHull == null) {
-
-				hull = new int[lowerHull.length + 1][lowerHull[0].length];
-
-				for (int i = 0; i < lowerHull.length; i++) {
-					hull[i] = lowerHull[i];
-				}
-
-				hull[hull.length - 1] = hullPoint;
-
-			} else if (lowerHull == null) {
-
-				hull = new int[upperHull.length + 1][upperHull[0].length];
-
-				hull[0] = hullPoint;
-
-				for (int i = 0; i < upperHull.length; i++) {
-					hull[i + 1] = upperHull[i];
-				}
-
-			} else {
-
-				hull = new int[upperHull.length + lowerHull.length + 1][upperHull[0].length];
-
-				// declare and initialize hull index for merging returned upper and lower hulls
-				// to hull
-				int hullIndex = 0;
-
-				// merge upper hull
-				for (int i = 0; i < upperHull.length; i++) {
-
-					hull[hullIndex++] = upperHull[i];
-
-				}
-
-				// merge lower hull
-				for (int i = 0; i < lowerHull.length; i++) {
-
-					hull[hullIndex++] = lowerHull[i];
-				}
-
-			}
-
-			// return hull
-			return hull;
+			dPHull(p, hullPointIndex, a);
+			dPHull(hullPointIndex, q, a);
 
 		}
 
-		return null;
 	}
 
 	/**
+	 * This method is used to calculate the determinant of a matrix. In context to
+	 * the quick hull problem, the assumption is made that the matrix reference
+	 * passed to the parameter a is a 3x3 matrix, due to this method being required
+	 * for calculating the angle of a given point p in a graph, to a line segment
+	 * formed by two other points. It is noted that from the HSR textbook, that the
+	 * determinant of a matrix that represents an array of points can refer to the
+	 * orientation of p to the line segment (left or right) by the sign of the
+	 * determinant and that the magnitude is the angle.
 	 * 
-	 * @param a
-	 * @param n
-	 * @return
+	 * @param a matrix whose determinant will be calculated
+	 * @param n number of vertices of the matrix
+	 * @return the signed determinant result of matrix a
 	 */
 	private int determinant(int[][] a, int n) {
 
@@ -391,6 +372,13 @@ public class DPHullCreator {
 	 * with a smaller x-coord than that of the left pivot, the index is incremented.
 	 * Just so, the right index is decremented when the element at that index
 	 * x-coord is greater than the right pivot. If neither are the case, only the i
+	 * is incremented. Two swaps for the pivots are then done at the end for values
+	 * at left+1 and right -1, to the respective left and right pivots. Once the sorting
+	 * is set, the partition index is then compared to other points by the triangular areas
+	 * formed by m,p and the points that are being compared. If the partition point's area
+	 * to m and p is less than that of the current point being compared, then the partition
+	 * is set to that point's index. The method returns the partition index of the point that
+	 * forms the largest absolute triangle area with the line segment formed by m and p.
 	 * 
 	 * @param a integer array to be partitioned
 	 * @param m left-most sub array index
@@ -402,8 +390,8 @@ public class DPHullCreator {
 		int[] leftPiv = a[m]; // choose element at m as left pivot
 		int[] rightPiv = a[p]; // choose element at p as right pivot
 
-		int left = m + 1; // set left to index m
-		int right = p - 1; // set right to index p
+		int left = m; // set left to index m
+		int right = p; // set right to index p
 
 		int i = left + 1;
 
@@ -443,14 +431,94 @@ public class DPHullCreator {
 			i = ((left + right) / 2);
 		}
 
+		int[][] detArr = null; // declare variable to hold a 3x3 array of points m, p and another point on the
+								// array
+		int triArea = 0; // initialize variable to store absolute area of triangle formed by m, p and a
+							// point in the array
+		int triDet = 0; // initialize variable to store determinant of triangle formed by m, p and a
+						// point on the array
+		int partArea = 0;// initialize variable to store the triangular area between points m, p and
+							// current partition
+		int partDet = 0; // initialize variable to store the triangular area between points m, p and
+							// current partition
+
+		// create 3x3 arrays to determine location of partition point angle relative to
+		// line seg of
+		// left and rightmost
+		detArr = new int[3][3];
+		detArr[0][0] = a[m][0];
+		detArr[0][1] = a[m][1];
+		detArr[0][2] = 1;
+		detArr[1][0] = a[p][0];
+		detArr[1][1] = a[p][1];
+		detArr[1][2] = 1;
+		detArr[2][0] = a[i][0];
+		detArr[2][1] = a[i][1];
+		detArr[2][2] = 1;
+
+		partDet = determinant(detArr, 3); // get partition triangle determinant
+		partArea = Math.abs(partDet / 2); // get partition triangle area
+
+		// use j as partition index and find the point in the sub array, where the there
+		// is a maximum triangular area
+		// with m and p and set the partition to return to that point.
+		for (int k = m + 1; k < p; k++) {
+
+			// create 3x3 arrays to determine location of point at k relative to line seg of
+			// left and rightmost
+			detArr = new int[3][3];
+			detArr[0][0] = a[m][0];
+			detArr[0][1] = a[m][1];
+			detArr[0][2] = 1;
+			detArr[1][0] = a[p][0];
+			detArr[1][1] = a[p][1];
+			detArr[1][2] = 1;
+			detArr[2][0] = a[k][0];
+			detArr[2][1] = a[k][1];
+			detArr[2][2] = 1;
+
+			triDet = determinant(detArr, 3); // get point k triangle determinant
+			triArea = Math.abs(triDet / 2); // get point k triangle area
+
+			// check if current partition triangle area is less than that of the triangle
+			// formed by p,q,k
+			if (partArea < triArea) {
+
+				i = k; // set partition to point at k
+
+			} else { // if not the case, check for a tie
+
+				// if the absolute areas between the two triangles are the same, compare the
+				// angles of the compared points the line segment formed by m and p
+				if (partArea == triArea) {
+
+					// if the angle of point at k to the line segment is greater, set partition to
+					// that point index
+					if (partDet < triDet) {
+
+						partDet = triDet; // set partition triangle determinant to point k triangle determinant
+						partArea = triArea; // set partition triangle area to point k triangle area
+						i = k; // set partition to point at k
+
+					}
+
+				}
+			}
+
+		}
+
 		return i; // return last partition index
 	}
 
 	/**
+	 * This method is a swap method implementation taken from the HSR textbook,
+	 * modified to swap elements of a 2-d array. A temporary variable is used to
+	 * store the element at point i in order to swap value positions without losing
+	 * an element's reference.
 	 * 
-	 * @param a
-	 * @param i
-	 * @param j
+	 * @param a 2-d array whose elements will be swapped
+	 * @param i index of first element to be swapped
+	 * @param j index of second element who will be swapped with element at i
 	 */
 	private void interchange(int[][] a, int i, int j) {
 
@@ -458,6 +526,24 @@ public class DPHullCreator {
 		a[i] = a[j];
 		a[j] = temp;
 
+	}
+
+	/**
+	 * This method is the getter method for the hull list
+	 * 
+	 * @return the hullList
+	 */
+	public List<int[]> getHullList() {
+		return hullList;
+	}
+
+	/**
+	 * This method is the getter method for the hull list
+	 * 
+	 * @param hullList the hullList to set
+	 */
+	public void setHullList(List<int[]> hullList) {
+		this.hullList = hullList;
 	}
 
 }
