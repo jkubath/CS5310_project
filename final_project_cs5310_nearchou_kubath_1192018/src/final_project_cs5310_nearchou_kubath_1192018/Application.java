@@ -36,12 +36,8 @@ import java.util.Random;
  * 
  * To run this program on the eclipse IDE, simply use the run button
  * and the program will execute a test for the performances of 5 runs
- * of creating randomized graphs for varying n, then reading file
- * input of graphs for a small input problem and the city problem studied in
- * the lecture, then outputting the min cost tree edges and costs in their
- * respective output files. Recorded performance
- * times and sequences are written in the main method, to files within the
- * project folder.
+ * of creating randomized graphs for varying n, and timing their
+ * hull computations.
  * 
  *
  */
